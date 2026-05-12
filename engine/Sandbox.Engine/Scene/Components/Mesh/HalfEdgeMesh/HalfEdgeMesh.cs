@@ -140,6 +140,9 @@ internal sealed partial class Mesh
 	private ComponentList<Face> FaceList { get; set; } = new();
 	private ComponentList<HalfEdge> HalfEdgeList { get; set; } = new();
 
+	public Action<HalfEdgeHandle, HalfEdgeHandle> OnCopyFaceVertexData { get; set; }
+	public Action<HalfEdgeHandle> OnClearFaceVertexData { get; set; }
+
 	internal int VertexCount => VertexList.Count;
 	internal int FaceCount => FaceList.Count;
 	internal int HalfEdgeCount => HalfEdgeList.Count;
@@ -392,10 +395,10 @@ internal sealed partial class Mesh
 		var hNewVertex = AllocateVertex( Vertex.Invalid, hVertex.Index );
 
 		// Create the new edges
-		var hNewIncomingEdge = ConstructHalfEdgePair( hPrevVertex, hNewVertex );
+		var hNewIncomingEdge = ConstructHalfEdgePair( hPrevVertex, hNewVertex, hIncomingEdge.Index, hIncomingOpposite.Index );
 		var hNewIncomingOpposite = GetOppositeHalfEdge( hNewIncomingEdge );
 
-		var hNewOutgoingEdge = ConstructHalfEdgePair( hNewVertex, hNextVertex );
+		var hNewOutgoingEdge = ConstructHalfEdgePair( hNewVertex, hNextVertex, hOutgoingEdge.Index, hOutgoingOpposite.Index );
 		var hNewOutgoingOpposite = GetOppositeHalfEdge( hNewOutgoingEdge );
 
 
@@ -925,14 +928,14 @@ internal sealed partial class Mesh
 		return HalfEdgeHandle.Invalid;
 	}
 
-	private HalfEdgeHandle ConstructHalfEdgePair( VertexHandle hVertexA, VertexHandle hVertexB )
+	private HalfEdgeHandle ConstructHalfEdgePair( VertexHandle hVertexA, VertexHandle hVertexB, int sourceIndexA = -1, int sourceIndexB = -1 )
 	{
 		// Should never be trying to add an edge which already exists
 		Assert.False( FindHalfEdgeConnectingVertices( hVertexA, hVertexB ).IsValid );
 		Assert.False( FindHalfEdgeConnectingVertices( hVertexB, hVertexA ).IsValid );
 
 		// Construct both halves of the half edge pair
-		if ( AllocateHalfEdgePair( out var hEdgeAB, out var hEdgeBA ) )
+		if ( AllocateHalfEdgePair( out var hEdgeAB, out var hEdgeBA, sourceIndexA, sourceIndexB ) )
 		{
 			hEdgeAB.Vertex = hVertexB;
 			hEdgeBA.Vertex = hVertexA;
@@ -941,7 +944,7 @@ internal sealed partial class Mesh
 		return hEdgeAB;
 	}
 
-	private bool AllocateHalfEdgePair( out HalfEdgeHandle hHalfEdgeA, out HalfEdgeHandle hHalfEdgeB )
+	private bool AllocateHalfEdgePair( out HalfEdgeHandle hHalfEdgeA, out HalfEdgeHandle hHalfEdgeB, int sourceIndexA = -1, int sourceIndexB = -1 )
 	{
 		int halfEdgeCount = HalfEdgeCount;
 
@@ -961,8 +964,8 @@ internal sealed partial class Mesh
 			Face = -1,
 		};
 
-		hHalfEdgeA = AllocateHalfEdge( edgeA );
-		hHalfEdgeB = AllocateHalfEdge( edgeB );
+		hHalfEdgeA = AllocateHalfEdge( edgeA, sourceIndexA );
+		hHalfEdgeB = AllocateHalfEdge( edgeB, sourceIndexB );
 
 		return true;
 	}
@@ -1392,7 +1395,7 @@ internal sealed partial class Mesh
 		{
 			// If an existing connecting edge was not found, construct a new edge which 
 			// will replace the two removed edges and connect vertex a to vertex b.
-			pEdgeList[nNumEdges++] = ConstructHalfEdgePair( hVertexA, hVertexB );
+			pEdgeList[nNumEdges++] = ConstructHalfEdgePair( hVertexA, hVertexB, hOutgoingEdge.Index, hIncomingEdge.OppositeEdge.Index );
 			Assert.True( nNumEdges == (nFaceNumEdges - 1) );
 		}
 
@@ -1665,6 +1668,8 @@ internal sealed partial class Mesh
 	{
 		if ( !hEdge.IsValid )
 			return;
+
+		OnClearFaceVertexData?.Invoke( hEdge );
 	}
 
 	private void CopyFaceVertexData( HalfEdgeHandle hDstHalfEdge, HalfEdgeHandle hSrcHalfEdge )
@@ -1674,6 +1679,8 @@ internal sealed partial class Mesh
 
 		if ( !hSrcHalfEdge.IsValid )
 			return;
+
+		OnCopyFaceVertexData?.Invoke( hDstHalfEdge, hSrcHalfEdge );
 	}
 
 	public bool RemoveFace( FaceHandle hFace, bool bRemoveFreeVerts )
@@ -1912,8 +1919,9 @@ internal sealed partial class Mesh
 		var hPrevEdgeB = FindPreviousEdgeInFaceLoop( hExistingEdgeB );
 		Assert.True( hPrevEdgeB.IsValid );
 
-		// Create the new edge pair
-		if ( !AllocateHalfEdgePair( out var hNewEdgeA, out var hNewEdgeB ) )
+		// Create the new edge pair, copying data streams from the existing edges
+		// so that face-vertex attributes (colors, UVs, etc.) are preserved on the new segments.
+		if ( !AllocateHalfEdgePair( out var hNewEdgeA, out var hNewEdgeB, hExistingEdgeA.Index, hExistingEdgeB.Index ) )
 			return false;
 
 		// Create the new vertex 
@@ -1970,7 +1978,7 @@ internal sealed partial class Mesh
 			return false;
 
 		// Create the new half edge pair
-		if ( AllocateHalfEdgePair( out var hNewEdgeAB, out var hNewEdgeBA ) == false )
+		if ( AllocateHalfEdgePair( out var hNewEdgeAB, out var hNewEdgeBA, hIncomingEdgeB.Index, hIncomingEdgeA.Index ) == false )
 			return false;
 
 		hNewEdgeAB.Vertex = hVertexB;
@@ -2321,7 +2329,7 @@ internal sealed partial class Mesh
 
 		// Create a new half edge pair which will be a connected pair of the 
 		// opposite edges of the open edges which are being connected.
-		if ( !AllocateHalfEdgePair( out var hNewHalfEdgeA, out var hNewHalfEdgeB ) )
+		if ( !AllocateHalfEdgePair( out var hNewHalfEdgeA, out var hNewHalfEdgeB, hOppositeEdgeA.Index, hOppositeEdgeB.Index ) )
 			return false;
 
 		{
