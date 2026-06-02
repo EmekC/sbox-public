@@ -1,5 +1,6 @@
 ﻿using System.IO.Compression;
 using System.Net.Http.Headers;
+using JetBrains.Refasmer;
 using static Facepunch.Constants;
 
 namespace Facepunch.Steps;
@@ -15,11 +16,6 @@ internal class UploadReferenceAssemblies( string name, BuildTarget target = Buil
 	private const string Endpoint = "https://public.facepunch.com/sbox/internal/reference-assemblies";
 	private readonly BuildTarget _target = target;
 
-	/// <summary>
-	/// Every assembly user code is compiled against. If any of these are missing the
-	/// step fails. Keep this in sync with the reference list in Sandbox.Engine
-	/// Project.Compiling.cs.
-	/// </summary>
 	private static readonly string[] ReferenceAssemblies =
 	{
 		"game/bin/managed/Sandbox.System.dll",
@@ -27,28 +23,16 @@ internal class UploadReferenceAssemblies( string name, BuildTarget target = Buil
 		"game/bin/managed/Sandbox.Filesystem.dll",
 		"game/bin/managed/Sandbox.Reflection.dll",
 		"game/bin/managed/Sandbox.Mounting.dll",
-		"game/bin/managed/Sandbox.Compiling.dll",
 		"game/bin/managed/Sandbox.Bind.dll",
-		"game/bin/managed/Sandbox.Tools.dll",
 		"game/bin/managed/Sandbox.Event.dll",
 		"game/bin/managed/Facepunch.ActionGraphs.dll",
 		"game/bin/managed/SkiaSharp.dll",
-		"game/bin/managed/Microsoft.CodeAnalysis.dll",
-		"game/bin/managed/Microsoft.CodeAnalysis.CSharp.dll",
 		"game/bin/managed/Microsoft.AspNetCore.Components.dll",
 	};
 
 	protected override ExitCode RunInternal()
 	{
-		try
-		{
-			return UploadAsync().GetAwaiter().GetResult();
-		}
-		catch ( Exception ex )
-		{
-			Log.Error( $"Reference assembly upload failed with error: {ex}" );
-			return ExitCode.Failure;
-		}
+		return UploadAsync().GetAwaiter().GetResult();
 	}
 
 	private async Task<ExitCode> UploadAsync()
@@ -155,13 +139,42 @@ internal class UploadReferenceAssemblies( string name, BuildTarget target = Buil
 		if ( File.Exists( zipPath ) )
 			File.Delete( zipPath );
 
-		using var archive = ZipFile.Open( zipPath, ZipArchiveMode.Create );
+		var refDir = Path.Combine( Path.GetTempPath(), $"refasm-{Guid.NewGuid():N}" );
+		Directory.CreateDirectory( refDir );
 
-		foreach ( var file in files )
+		try
 		{
-			// Flatten everything to the archive root keyed by file name so the
-			// backend doesn't need to know about our build folder layout.
-			archive.CreateEntryFromFile( file, Path.GetFileName( file ), CompressionLevel.Optimal );
+			var logger = new LoggerBase( new RefasmerLogger() );
+
+			using var archive = ZipFile.Open( zipPath, ZipArchiveMode.Create );
+
+			foreach ( var file in files )
+			{
+				var name = Path.GetFileName( file );
+				var refPath = Path.Combine( refDir, name );
+
+				// Turn them into actual ref assemblies (smaller, more portable)
+				MetadataImporter.MakeRefasm( file, refPath, logger, omitNonApiMembers: true, filter: null, makeMock: false );
+
+				archive.CreateEntryFromFile( refPath, name, CompressionLevel.Optimal );
+			}
+		}
+		finally
+		{
+			try { Directory.Delete( refDir, true ); } catch { }
+		}
+	}
+
+	private sealed class RefasmerLogger : JetBrains.Refasmer.ILogger
+	{
+		public bool IsEnabled( JetBrains.Refasmer.LogLevel logLevel ) => logLevel >= JetBrains.Refasmer.LogLevel.Warning;
+
+		public void Log( JetBrains.Refasmer.LogLevel logLevel, string message )
+		{
+			if ( logLevel >= JetBrains.Refasmer.LogLevel.Error )
+				Facepunch.Log.Error( $"refasmer: {message}" );
+			else if ( logLevel >= JetBrains.Refasmer.LogLevel.Warning )
+				Facepunch.Log.Info( $"refasmer: {message}" );
 		}
 	}
 }
