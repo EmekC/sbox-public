@@ -34,9 +34,6 @@ public partial class Texture
 
 		var writer = new VTexWriter();
 
-		// Linear data textures (normal maps, roughness, metalness etc.) have this flag set
-		bool srgb = !desc.m_nFlags.HasFlag( NativeEngine.RuntimeTextureSpecificationFlags.TSPEC_LINEAR_COLOR_SPACE );
-
 		// For cubemaps rendered with inverted scale sampling, we need to:
 		// 1. Swap face pairs (+X/-X, +Y/-Y, +Z/-Z) because the lookup direction is negated
 		// 2. Apply per-axis flips because UV coordinates change when direction is negated
@@ -49,13 +46,13 @@ public partial class Texture
 				for ( int face = 0; face < 6; face++ )
 				{
 					var faceBitmap = GetFaceBitmap( mip, cubemapFaceRemap[face] );
-					writer.SetTexture( faceBitmap, mip, face, srgb );
+					writer.SetTexture( faceBitmap, mip, face );
 				}
 			}
 			else
 			{
 				var bitmap = GetBitmap( mip );
-				writer.SetTexture( bitmap, mip, srgb: srgb );
+				writer.SetTexture( bitmap, mip );
 			}
 		}
 

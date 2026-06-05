@@ -48,15 +48,14 @@ public class TextureResourceCompiler : ResourceCompiler
 		int depth = desc.m_nDepth;
 		int mipCount = desc.m_nNumMipLevels;
 
-		var writer = new VTexWriter();
+		var formatOverride = generator is TextureGenerator texGen ? texGen.FormatOverride : null;
 
-		// Linear data textures (normal maps, roughness, metalness etc.) have this flag set
-		bool srgb = !desc.m_nFlags.HasFlag( NativeEngine.RuntimeTextureSpecificationFlags.TSPEC_LINEAR_COLOR_SPACE );
+		var writer = new VTexWriter();
 
 		for ( var mip = 0; mip < mipCount; mip++ )
 		{
 			var bitmap = texture.GetBitmap( mip );
-			writer.SetTexture( bitmap, mip, srgb: srgb );
+			writer.SetTexture( bitmap, mip );
 		}
 
 		writer.Header.Width = (ushort)width;
@@ -88,7 +87,10 @@ public class TextureResourceCompiler : ResourceCompiler
 
 		writer.Header.Flags = flags;
 
-		writer.CalculateFormat();
+		if ( formatOverride.HasValue )
+			writer.Header.Format = VTexWriter.RuntimeToVTEX_Format( formatOverride.Value ).Value;
+		else
+			writer.CalculateFormat();
 
 		Context.Data.Write( writer.GetData() );
 		Context.StreamingData.Write( writer.GetStreamingData() );
