@@ -342,6 +342,31 @@ public static partial class Gizmo
 	}
 
 	/// <summary>
+	/// Snaps a world position to the grid along the given space's local axes. <paramref name="start"/>
+	/// is the drag origin and <paramref name="movement"/> the accumulated delta.
+	/// </summary>
+	public static Vector3 Snap( Vector3 start, Vector3 movement, Rotation space )
+	{
+		if ( Settings.SnapToGrid == IsCtrlPressed )
+			return start + movement;
+
+		if ( IsAxisAligned( space ) )
+			return Snap( start + movement, movement );
+
+		var localStart = start * space.Inverse;
+		var localMove = movement * space.Inverse;
+		var snapped = Snap( localStart + localMove, localMove );
+		return start + (snapped - localStart) * space;
+	}
+
+	static bool IsAxisAligned( Rotation rotation )
+	{
+		return IsAligned( rotation.Forward ) && IsAligned( rotation.Right ) && IsAligned( rotation.Up );
+	}
+
+	static bool IsAligned( Vector3 axis ) => axis.AlmostEqual( axis.SnapToGrid( 1.0f ) );
+
+	/// <summary>
 	/// Will snap this position, depending on the current snap settings and keys that are pressed.
 	/// Will snap along if movement is detected along that axis. For example, if movement is 1,0,0 then we'll
 	/// only snap on the x axis.
