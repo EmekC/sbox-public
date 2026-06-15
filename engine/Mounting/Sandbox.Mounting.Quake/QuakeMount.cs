@@ -8,6 +8,8 @@ public partial class QuakeMount : BaseGameMount
 
 	const long AppId = 2310;
 
+	public override long? SteamAppId => AppId;
+
 	readonly Dictionary<string, List<PakLib.Pack>> _paks = [];
 	readonly Dictionary<string, byte[]> _palettes = [];
 	string _root;

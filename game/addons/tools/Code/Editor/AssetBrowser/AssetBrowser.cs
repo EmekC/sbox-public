@@ -192,7 +192,7 @@ public partial class AssetBrowser : Widget, IBrowser, AssetSystem.IEventListener
 
 		var splitter = new Splitter( this );
 		splitter.IsHorizontal = true;
-		splitter.AddWidget( AssetLocations );
+		splitter.AddWidget( BuildLocationsPanel() );
 		splitter.SetStretch( 0, 1 );
 		splitter.AddWidget( body );
 		splitter.SetStretch( 1, 5 );
@@ -233,6 +233,8 @@ public partial class AssetBrowser : Widget, IBrowser, AssetSystem.IEventListener
 	{
 
 	}
+
+	protected virtual Widget BuildLocationsPanel() => AssetLocations;
 
 	public override void OnDestroyed()
 	{
