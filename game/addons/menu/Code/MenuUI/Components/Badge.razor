@@ -26,5 +26,5 @@
     
     string StyleClass { get; set; }
 
-    protected override int BuildHash() => System.HashCode.Combine( Text, Icon, Number );
+	protected override int BuildHash() => System.HashCode.Combine( Text, Icon, Number, StyleClass );
 }
