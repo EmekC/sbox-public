@@ -139,21 +139,6 @@ VS
         o.PixelPosition = Position3WsToPs( o.WorldPosition.xyz );
         o.LodLevel = i.PositionAndLod.z;
 
-        // Check for holes in vertex shader using control map's extra data
-        if ( Terrain::Get().ControlMapTexture != 0 )
-        {
-            Texture2D tControlMap = Bindless::GetTexture2D( Terrain::Get().ControlMapTexture );
-            float rawPixel = tControlMap.SampleLevel( g_sPointClamp, uv, 0 ).r;
-            CompactTerrainMaterial material = CompactTerrainMaterial::DecodeFromFloat( rawPixel );
-            
-            if ( material.IsHole )
-            {
-                o.LocalPosition = float3( 0. / 0., 0, 0 );
-                o.WorldPosition = mul( Terrain::Get().Transform, float4( o.LocalPosition, 1.0 ) ).xyz;
-                o.PixelPosition = Position3WsToPs( o.WorldPosition.xyz );
-            }
-        }
-
 		return o;
 	}
 }
@@ -484,6 +469,17 @@ PS
         float metalness = 0;
 
     #if D_GRID
+        if ( Terrain::Get().ControlMapTexture != 0 )
+        {
+            Texture2D tControlMap = Terrain::GetControlMap();
+            CompactTerrainMaterial material = CompactTerrainMaterial::DecodeFromFloat( tControlMap.Sample( g_sPointClamp, uv ).r );
+            if ( material.IsHole )
+            {
+                clip( -1 );
+                return float4( 0, 0, 0, 0 );
+            }
+        }
+
         Terrain_ProcGrid( i.LocalPosition.xy, albedo, roughness );
     #else
         // Compact format: simple base/overlay blending
