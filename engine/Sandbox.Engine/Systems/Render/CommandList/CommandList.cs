@@ -471,8 +471,9 @@ public sealed unsafe partial class CommandList
 			// Begin a debug marker scope so PIX/RenderDoc show this list
 			Graphics.Context.BeginPixEvent( _markerName );
 
-			// GPU Profiler timestamp
-			NativeEngine.CSceneSystem.SetManagedPerfMarker( Graphics.Context, _debugName ?? "CommandList" );
+			// GPU profiler timing scope, closed after execution below. The profiler nests this under its
+			// containing layer by GPU-timestamp containment in the summary - no parent passed here.
+			var perfScope = NativeEngine.CSceneSystem.BeginManagedPerfMarker( Graphics.Context, _debugName ?? "CommandList" );
 
 			// Execute all commands
 			try
@@ -490,6 +491,8 @@ public sealed unsafe partial class CommandList
 			}
 
 			Graphics.Context.EndPixEvent();
+
+			NativeEngine.CSceneSystem.EndManagedPerfMarker( Graphics.Context, perfScope );
 
 			// Reset the state and return to the pool
 			state.Reset();
