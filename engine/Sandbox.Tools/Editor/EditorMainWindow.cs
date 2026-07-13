@@ -98,6 +98,9 @@ public class EditorMainWindow : DockWindow
 
 	static bool isEngineLoggingVerbose;
 
+	internal SceneTabWidget SceneTabs { get; }
+	readonly DockWidget _centralDock;
+
 	private Option save;
 	private Option saveAs;
 	private Option saveAll;
@@ -113,7 +116,9 @@ public class EditorMainWindow : DockWindow
 		WindowTitle = "s&box editor";
 		DeleteOnClose = true;
 		FullScreenManager = new();
-		DockManager.OnLayoutLoaded += OnDockLayoutLoaded;
+
+		SceneTabs = new SceneTabWidget( this );
+		_centralDock = DockManager.SetCentralWidget( SceneTabs );
 
 		{
 			FileMenu = MenuBar.AddMenu( "File" );
@@ -342,38 +347,17 @@ public class EditorMainWindow : DockWindow
 
 	protected override void RestoreDefaultDockLayout()
 	{
-		// hide everything, leaving the scene views as the only visible areas
+		// hide everything, leaving the central scene area as the only visible dock
 		foreach ( var dock in DockManager.DockTypes )
 		{
 			DockManager.SetDockState( dock.Title, false );
 		}
 
-		// make sure every scene is open, gathered into a single central area
-		SceneEditorSession.OnEditorWindowRestoreLayout();
-
-		DockWidget scene = null;
-		foreach ( var session in SceneEditorSession.All )
-		{
-			var dock = session.DockWidget;
-			if ( !dock.IsValid() || dock.IsClosed ) continue;
-
-			if ( scene is null ) scene = dock;
-			else DockManager.AddDock( dock, scene );
-		}
-
 		// classic layout: hierarchy left, inspector right, asset browser + console under the scene
 		DockManager.OpenDock( "Hierarchy", DockArea.Left );
 		DockManager.OpenDock( "Inspector", DockArea.Right );
-		var browser = DockManager.OpenDock( "Asset Browser", DockArea.Bottom, scene );
+		var browser = DockManager.OpenDock( "Asset Browser", DockArea.Bottom, _centralDock );
 		DockManager.OpenDock( "Console", DockArea.Center, browser );
-	}
-
-	/// <summary>
-	/// Called when the layout is loaded. We want to force all the scene views to be visible!
-	/// </summary>
-	void OnDockLayoutLoaded()
-	{
-		SceneEditorSession.OnEditorWindowRestoreLayout();
 	}
 
 	/// <summary>
@@ -399,7 +383,6 @@ public class EditorMainWindow : DockWindow
 	public override void OnDestroyed()
 	{
 		// Unsubscribe from events
-		if ( DockManager != null ) DockManager.OnLayoutLoaded -= OnDockLayoutLoaded;
 		if ( RecentScenesMenu != null ) RecentScenesMenu.AboutToShow -= BuildRecentScenes;
 		if ( FileMenu != null ) FileMenu.AboutToShow -= OnFileMenuAboutToShow;
 		if ( ViewsMenu != null ) ViewsMenu.AboutToShow -= OnViewsMenuAboutToShow;

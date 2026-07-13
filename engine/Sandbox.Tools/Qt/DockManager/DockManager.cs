@@ -145,15 +145,20 @@ public partial class DockManager : Widget
 	}
 
 	/// <summary>
-	/// Sets a widget as the central (non-closable, non-tabbed) area.
+	/// Sets a widget as the central (always present, non-closable) area. Must be
+	/// called before any other dock is added. Returns the dock hosting it, which
+	/// can be used as a target for relative docking.
 	/// </summary>
-	public void SetCentralWidget( Widget w )
+	public DockWidget SetCentralWidget( Widget widget )
 	{
-		var dockWidget = _nativeDockManager.createDockWidget( "CentralWidget" );
-		dockWidget.setWidget( w._widget );
-		dockWidget.setFeature( DockWidgetFeature.NoTab, true );
+		ArgumentNullException.ThrowIfNull( widget );
 
-		_nativeDockManager.setCentralWidget( dockWidget );
+		var dock = CreateDockWidget( "CentralWidget", string.Empty, widget );
+		dock._nativeDockWidget.setFeature( DockWidgetFeature.NoTab, true );
+
+		_nativeDockManager.setCentralWidget( dock._nativeDockWidget );
+
+		return dock;
 	}
 
 	/// <summary>
