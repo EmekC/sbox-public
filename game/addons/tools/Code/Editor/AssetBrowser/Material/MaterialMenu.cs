@@ -1,4 +1,4 @@
-﻿using Sandbox.Resources;
+using Sandbox.Resources;
 
 namespace Editor;
 
@@ -110,62 +110,62 @@ internal static class MaterialMenu
 		//
 		// Try to work out what textures should go where using hacks and magic
 		//
-		string[] texColorExtensions     = ["color", "diff", "albedo", "basecolor"];
-		string[] texNormalExtensions    = ["nrm", "normal", "amb"];
-		string[] texAoExtensions        = ["ao", "occ", "amb", "ambientocclusion"];
-		string[] texRoughExtensions     = ["rough", "roughness"];
-		string[] texMetallicExtensions  = ["metallic", "metal", "metalness"];
+		string[] texColorExtensions = ["color", "diff", "albedo", "basecolor"];
+		string[] texNormalExtensions = ["nrm", "normal", "amb"];
+		string[] texAoExtensions = ["ao", "occ", "amb", "ambientocclusion"];
+		string[] texRoughExtensions = ["rough", "roughness"];
+		string[] texMetallicExtensions = ["metallic", "metal", "metalness"];
 		string[] texSelfIllumExtensions = ["selfillum"];
-		string[] texMaskExtensions      = ["mask"];
+		string[] texMaskExtensions = ["mask"];
 
 		// 1. Color Texture
 		string texColor = assetPeers
-			.FirstOrDefault(peer => texColorExtensions.Any(keyword => peer.Name.Contains($"_{keyword}")))
+			.FirstOrDefault( peer => texColorExtensions.Any( keyword => peer.Name.Contains( $"_{keyword}" ) ) )
 			?.RelativePath;
 
 		texColor ??= asset.RelativePath; // Failing that, lets use whatever we have selected
 
 		// 2. Normal Texture 
 		string texNormal = assetPeers
-			.FirstOrDefault(peer => texNormalExtensions.Any(keyword => peer.Name.Contains($"_{keyword}")))
+			.FirstOrDefault( peer => texNormalExtensions.Any( keyword => peer.Name.Contains( $"_{keyword}" ) ) )
 			?.RelativePath ?? "materials/default/default_normal.tga";
 
 		// 3. AO Texture 
 		string texAo = assetPeers
-			.FirstOrDefault(peer => texAoExtensions.Any(keyword => peer.Name.Contains($"_{keyword}")))
+			.FirstOrDefault( peer => texAoExtensions.Any( keyword => peer.Name.Contains( $"_{keyword}" ) ) )
 			?.RelativePath ?? "materials/default/default_ao.tga";
 
 		// 4. Roughness Texture 
 		string texRough = assetPeers
-			.FirstOrDefault(peer => texRoughExtensions.Any(keyword => peer.Name.Contains($"_{keyword}")))
+			.FirstOrDefault( peer => texRoughExtensions.Any( keyword => peer.Name.Contains( $"_{keyword}" ) ) )
 			?.RelativePath ?? "materials/default/default_rough.tga";
 
 		// 5. Metallic Texture 
 		string texMetallic = assetPeers
-			.FirstOrDefault(peer => texMetallicExtensions.Any(keyword => peer.Name.Contains($"_{keyword}")))
+			.FirstOrDefault( peer => texMetallicExtensions.Any( keyword => peer.Name.Contains( $"_{keyword}" ) ) )
 			?.RelativePath;
 
-		if (texMetallic != null)
+		if ( texMetallic != null )
 		{
 			texMetallic = $"\n	F_METALNESS_TEXTURE 1\n	F_SPECULAR 1\n	TextureMetalness \"{texMetallic}\"";
 		}
 
 		// 6. Self Illum Texture 
 		string texSelfIllum = assetPeers
-			.FirstOrDefault(peer => texSelfIllumExtensions.Any(keyword => peer.Name.Contains($"_{keyword}")))
+			.FirstOrDefault( peer => texSelfIllumExtensions.Any( keyword => peer.Name.Contains( $"_{keyword}" ) ) )
 			?.RelativePath;
 
-		if (texSelfIllum != null)
+		if ( texSelfIllum != null )
 		{
 			texSelfIllum = $"\n	F_SELF_ILLUM 1\n	TextureSelfIllumMask \"{texSelfIllum}\"";
 		}
 
 		// 7. Tint Mask Texture 
 		string tintMask = assetPeers
-			.FirstOrDefault(peer => texMaskExtensions.Any(keyword => peer.Name.Contains($"_{keyword}")))
+			.FirstOrDefault( peer => texMaskExtensions.Any( keyword => peer.Name.Contains( $"_{keyword}" ) ) )
 			?.RelativePath;
 
-		if (tintMask != null)
+		if ( tintMask != null )
 		{
 			tintMask = $"\n	F_TINT_MASK 1\n	TextureTintMask \"{tintMask}\"";
 		}
